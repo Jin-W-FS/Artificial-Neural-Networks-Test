@@ -1,110 +1,109 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
-#define MAX_INPUT 2
-#define MAX_INPUT_EXT (MAX_INPUT + 1)
+#include "NeuralNode.h"
 
-/* learning rete */
-#define yita 0.5
-#define epsino 0.01
+typedef struct _NeuralWeb
+{
+	NeuralNode* input;
+	NeuralNode* hidden;
+	NeuralNode* output;
+}NeuralWeb;
 
-float weights[MAX_INPUT_EXT];
+void init(NeuralWeb* web);
+void release(NeuralWeb* web);
 
-void init();
+void init_input_Nodes(NeuralNode* inputNode, float* inputf, int n);
 
-float caculate(float* inputs);
-float adjust(float output);
-/* improve from difference = destination - result(from caculate) */
-void learn(float result, float dest, float* inputs);
+void train(NeuralWeb* web);
+float apply(NeuralWeb* web);
+
+float model_inputs[4][MAX_INPUT] = {
+	0, 0, 0, 1, 1, 0, 1, 1,
+};
+float model_answer[4] = {
+	0, 0, 0, 1
+};
 
 int main()
 {
-	float model_inputs[4][MAX_INPUT] = {
-		0, 0, 0, 1, 1, 0, 1, 1,
-	};
-	float model_answer[4] = {
-		0, 0, 0, 1
-	};
+	NeuralWeb web;
 	
+	float input[2];
+	
+	init(&web);
+	train(&web);
+	
+	printf("now start a test:\n");
+	printf("with weights: %f, %f, %f\n",
+	       web.output->weights[0], web.output->weights[1], web.output->weights[2]);
+
+	while(scanf("%f %f", &input[0], &input[1]) == 2)
+	{
+		init_input_Nodes(web.input, input, 2);
+		printf("%f && %f = %f\n", input[0], input[1], apply(&web));
+	}
+
+	return 0;
+}
+
+/* now just a 2-plant web */
+void init(NeuralWeb* web)
+{
+	web->input = (NeuralNode*)malloc(MAX_INPUT * sizeof(NeuralNode));
+	web->hidden = NULL;
+	web->output = (NeuralNode*)malloc(sizeof(NeuralNode));
+}
+void release(NeuralWeb* web)
+{
+	free(web->input);
+	free(web->output);
+	web->input = NULL;
+	web->output = NULL;
+}
+
+float apply(NeuralWeb* web)
+{
+	caculate(web->output, web->input);
+	return web->output->result;
+}
+
+void init_input_Nodes(NeuralNode* inputNode, float* inputf, int n)
+{
+	int i;
+	for (i = 0; i < n; i++)
+	{
+		inputNode[i].result = inputf[i];
+	}
+}
+
+/* now just a 2-plant web, use models above */
+void train(NeuralWeb* web)
+{
 	int i, pass;
-	float result;
 
-	float input[MAX_INPUT];
-
-	/* training */
-	init();
+	initNeuralNode(web->output);
 
 	do
 	{
 		pass = 1;
 		for (i = 0; i < 4; i++)
 		{
-			result = caculate(model_inputs[i]);
+			init_input_Nodes(web->input, model_inputs[i], MAX_INPUT);
+			apply(web);
 
-			printf("\t%f && %f = %f\n", model_inputs[i][0], model_inputs[i][1], result);
+			printf("%f %f\t%f\n",
+			       web->input[0].result, web->input[1].result, web->output->result);
 
-			if (fabsf(model_answer[i] - result) > epsino)
+			count_final_error(web->output, model_answer[i]);
+			
+			if (!LITTLE_ERROR(web->output->error))
 			{
 				pass = 0;
-				learn(result, model_answer[i], model_inputs[i]);
+				/* count_hidden_error */
+				learn(web->output, web->input, model_answer[i]);
 			}
 		}
 		putchar('\n');
 	}while(!pass);
-
-	/* test */
-	printf("weights:\n");
-	for (i = 0; i < MAX_INPUT_EXT; i++)
-	{
-		printf("\t%f", weights[i]);
-	}
-	printf("\nNow start test:\n");
-	
-	while(scanf("%f %f", &input[0], &input[1]) == 2)
-	{
-		result = caculate(input);
-		printf("\t%f && %f = %f\n", input[0], input[1], result);
-	}
-
-	return 0;
-}
-
-
-void init()
-{
-	int i;
-	
-	srand((unsigned int)time(NULL));
-	for (i = 0; i < MAX_INPUT_EXT; i++)
-	{
-		weights[i] = rand() % 1000 / 1000.0;
-	}
-}
-
-float adjust(float output)
-{
-	return ((output > 0.0) ? 1 : 0);
-}
-
-float caculate(float* inputs)
-{
-	float result = 0;
-	int i;
-	for (i = 0; i < MAX_INPUT; i++)
-	{
-		result += inputs[i] * weights[i];
-	}
-	result += weights[i];
-	return adjust(result);
-}
-
-void learn(float result, float dest, float* inputs)
-{
-	int i;
-	for (i = 0; i < MAX_INPUT; i++)
-	{
-		weights[i] += (yita * (dest - result) * inputs[i]);
-	}
-	weights[i] += (yita * (dest - result) * 1);
 }
