@@ -81,11 +81,14 @@ void init_input_Nodes(NeuralNode* inputNode, float* inputf, int n)
 void train(NeuralWeb* web)
 {
 	int i, pass;
+	int count = 0;
 
 	initNeuralNode(web->output);
 
 	do
 	{
+		printf("\t %d\n", count++);
+		
 		pass = 1;
 		for (i = 0; i < 4; i++)
 		{
@@ -95,15 +98,12 @@ void train(NeuralWeb* web)
 			printf("%f %f\t%f\n",
 			       web->input[0].result, web->input[1].result, web->output->result);
 
-			count_final_error(web->output, model_answer[i]);
-			
-			if (!LITTLE_ERROR(web->output->error))
+			if (!LITTLE_ERROR(count_final_error(web->output, model_answer[i])))
 			{
 				pass = 0;
 				/* count_hidden_error */
 				learn(web->output, web->input, model_answer[i]);
 			}
 		}
-		putchar('\n');
 	}while(!pass);
 }
