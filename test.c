@@ -19,11 +19,15 @@ void train(NeuralWeb* web);
 float apply(NeuralWeb* web);
 
 float model_inputs[4][MAX_INPUT] = {
-	0, 0, 0, 1, 1, 0, 1, 1,
+	1, 1, -0.5, -1, 3, 1, -2, -1
 };
 float model_answer[4] = {
-	0, 0, 0, 1
+	1, 0, 1, 0
 };
+float adjust_result(float result)
+{
+	return (result * 2 - 1);
+}
 
 int main()
 {
@@ -41,7 +45,7 @@ int main()
 	while(scanf("%f %f", &input[0], &input[1]) == 2)
 	{
 		init_input_Nodes(web.input, input, 2);
-		printf("%f && %f = %f\n", input[0], input[1], apply(&web));
+		printf("in: %f %f \t out: %f\n", input[0], input[1], adjust_result(apply(&web)));
 	}
 
 	return 0;
