@@ -1,9 +1,9 @@
 CC=gcc
-CFLAGS=-lm
-LDFLAGS=
+CFLAGS=-g
+LDFLAGS=-lm
 
 TARGET=test
-OBJS=test.o NeuralNode.o
+OBJS=test.o NeuralLayer.o
 
 $(TARGET):$(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $(TARGET)

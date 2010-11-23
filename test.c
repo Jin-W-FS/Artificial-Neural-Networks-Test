@@ -1,113 +1,59 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "NeuralNode.h"
+#include "NeuralLayer.h"
 
-typedef struct _NeuralWeb
-{
-	NeuralNode* input;
-	NeuralNode* hidden;
-	NeuralNode* output;
-}NeuralWeb;
-
-void init(NeuralWeb* web);
-void release(NeuralWeb* web);
-
-void init_input_Nodes(NeuralNode* inputNode, float* inputf, int n);
-
-void train(NeuralWeb* web);
-float apply(NeuralWeb* web);
-
-float model_inputs[4][MAX_INPUT] = {
-	1, 1, -0.5, -1, 3, 1, -2, -1
-};
-float model_answer[4] = {
-	1, 0, 1, 0
-};
-float adjust_result(float result)
-{
-	return (result * 2 - 1);
-}
-
+/* test */
 int main()
 {
-	NeuralWeb web;
+	NeuralLayer input, output;
+	float inputf[2];
+	float result, error;
+	int i, ok, n = 0;
 	
-	float input[2];
-	
-	init(&web);
-	train(&web);
-	
-	printf("now start a test:\n");
-	printf("with weights: %f, %f, %f\n",
-	       web.output->weights[0], web.output->weights[1], web.output->weights[2]);
+	float sample[4][2] = {
+		0, 0, 0, 1, 1, 0, 1, 1
+	};
+	float sample_result[4][1] = {
+		0, 1, 1, 1
+	};
 
-	while(scanf("%f %f", &input[0], &input[1]) == 2)
+	initLayer(&input, 2, NULL);
+	initLayer(&output, 1, &input);
+
+	do
 	{
-		init_input_Nodes(web.input, input, 2);
-		printf("in: %f %f \t out: %f\n", input[0], input[1], adjust_result(apply(&web)));
+		printf("\n----%3d ----\n", n++);
+		ok = 1;
+		for (i = 0; i < 4; i++)
+		{
+			setLayerValue(&input, sample[i]);
+			caculate(&output);
+			
+			printf("%f\t%f ->\t%f\n", input.result[0], input.result[1], output.result[0]);
+
+			error = countFinalError(&output, sample_result[i]) / 2;
+			if (error > 0.001)
+			{
+				ok = 0;
+			}
+			adjustWeights(&output);
+
+		}
+	}while(!ok);
+	
+	printf("\nnow start a test:\n");
+	while(scanf("%f %f", &inputf[0], &inputf[1]) == 2)
+	{
+		setLayerValue(&input, inputf);
+		caculate(&output);
+		result = output.result[0];
+		printf("%f || %f = %f\n", inputf[0], inputf[1], result);
 	}
+
+	releaseLayer(&input);
+	releaseLayer(&output);
 
 	return 0;
 }
 
-/* now just a 2-plant web */
-void init(NeuralWeb* web)
-{
-	web->input = (NeuralNode*)malloc(MAX_INPUT * sizeof(NeuralNode));
-	web->hidden = NULL;
-	web->output = (NeuralNode*)malloc(sizeof(NeuralNode));
-}
-void release(NeuralWeb* web)
-{
-	free(web->input);
-	free(web->output);
-	web->input = NULL;
-	web->output = NULL;
-}
-
-float apply(NeuralWeb* web)
-{
-	caculate(web->output, web->input);
-	return web->output->result;
-}
-
-void init_input_Nodes(NeuralNode* inputNode, float* inputf, int n)
-{
-	int i;
-	for (i = 0; i < n; i++)
-	{
-		inputNode[i].result = inputf[i];
-	}
-}
-
-/* now just a 2-plant web, use models above */
-void train(NeuralWeb* web)
-{
-	int i, pass;
-	int count = 0;
-
-	initNeuralNode(web->output);
-
-	do
-	{
-		printf("\t %d\n", count++);
-		
-		pass = 1;
-		for (i = 0; i < 4; i++)
-		{
-			init_input_Nodes(web->input, model_inputs[i], MAX_INPUT);
-			apply(web);
-
-			printf("%f %f\t%f\n",
-			       web->input[0].result, web->input[1].result, web->output->result);
-
-			if (!LITTLE_ERROR(count_final_error(web->output, model_answer[i])))
-			{
-				pass = 0;
-				/* count_hidden_error */
-				learn(web->output, web->input, model_answer[i]);
-			}
-		}
-	}while(!pass);
-}
