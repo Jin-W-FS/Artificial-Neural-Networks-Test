@@ -3,6 +3,19 @@
 
 #include "NeuralLayer.h"
 
+int input_sample(float sample[4][2], float result[4][1])
+{
+	int i;
+	for (i = 0; i < 4; i++)
+	{
+		if (scanf("%f %f %f", &sample[i][0], &sample[i][1], &result[i][0]) != 3)
+			return -1;
+		else
+			printf("%f %f %f\n", sample[i][0], sample[i][1], result[i][0]);
+	}
+	return 0;
+}
+
 /* test */
 int main()
 {
@@ -10,14 +23,17 @@ int main()
 	float inputf[2];
 	float result, error;
 	int i, ok, n = 0;
-	
-	float sample[4][2] = {
-		0, 0, 0, 1, 1, 0, 1, 1
-	};
-	float sample_result[4][1] = {
-		0, 1, 1, 1
-	};
 
+	float sample[4][2];
+	float sample_result[4][1];
+	
+	printf("input sample with result (matrix 4 * 3):\n");
+	if (input_sample(sample, sample_result))
+	{
+		printf("reading error, exit.\n");
+		return -1;
+	}
+	
 	initLayer(&input, 2, NULL);
 	initLayer(&output, 1, &input);
 
