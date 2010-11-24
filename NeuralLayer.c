@@ -9,7 +9,7 @@ void init_weights(float* weights, int n)
 {
 	int i;
 	for (i = 0; i < n; i++)
-		weights[i] = (float)(rand() % 65535) / 65535.0;
+		weights[i] = (float)((rand() % 65536) / 32768.0 - 1);
 }
 
 void initLayer(NeuralLayer* layer, int n_nodes, NeuralLayer* last_layer)
@@ -47,6 +47,7 @@ void releaseLayer(NeuralLayer* layer)
 		free(layer->weights);
 	}
 }
+#define THRESHOLD_SLOPE_USE_STRICK
 
 /* threshold function */
 float threshold(float exp_rate, float x)
@@ -105,7 +106,22 @@ float countFinalError(NeuralLayer* final_layer, float* dest)
 }
 
 /* by per-settled errors: next_layer->error */
-void countHiddenError(NeuralLayer* next_layer);
+void countHiddenError(NeuralLayer* next_layer)
+{
+	NeuralLayer* layer = next_layer->last;
+	int i, j;
+	
+	if (!layer) return;
+	for (i = 0; i < layer->n_nodes; i++)
+	{
+		float error = 0;
+		for(j = 0; j < next_layer->n_nodes; j++)
+		{
+			error += next_layer->error[j] * next_layer->weights[j * next_layer->n_nodes + i];
+		}
+		layer->error[i] = error * threshold_slope(layer->exp_rate, layer->result[i]);
+	}
+}
 
 /* use errors already count */
 void adjustWeights(NeuralLayer* layer)
