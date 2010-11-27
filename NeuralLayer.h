@@ -48,16 +48,19 @@ void setLayerValue(NeuralLayer* input_layer, float* value);
 typedef struct _NeuralNet
 {
 	int n_hidden;
+	float epsino;
+	
 	NeuralLayer* output;
 	NeuralLayer* hidden;
 	NeuralLayer* input;
 }NeuralNet;
 
-/* n_nodes: from input towords output, length: n_hidden + 2  */
-void initNet(NeuralNet* net, int n_hidden, int* n_nodes);
+/* n_nodes: nodes of each layer, from input towords output, length: n_layers; */
+void initNet(NeuralNet* net, int n_layers, int* n_nodes);
 void releaseNet(NeuralNet* net);
 
-void evolution(NeuralNet* net, float* input, float* dest);
-
+void caculateNet(NeuralNet* net, float* input);
+/* use input[n] & dest[n] to evolve once */
+float evolveNet(NeuralNet* net, float* input, float* dest);
 
 #endif	/* end _ANN_LAYER_JIN */

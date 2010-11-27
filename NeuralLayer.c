@@ -146,8 +146,82 @@ void setLayerValue(NeuralLayer* input_layer, float* value)
 	memcpy(input_layer->result, value, input_layer->n_nodes * sizeof(float));
 }
 
-/* n_nodes: from input towords output, length: n_hidden + 2  */
-void initNet(NeuralNet* net, int n_hidden, int* n_nodes);
-void releaseNet(NeuralNet* net);
+void initNet(NeuralNet* net, int n_layers, int* n_nodes)
+{
+	int i;
+	NeuralLayer* layers;
 
-void evolution(NeuralNet* net, float* input, float* dest);
+	assert(n_layers >= 2);
+	
+	net->n_hidden = n_layers - 2;
+	net->epsino = 0.05;
+	
+	/* allocate memory */
+	layers = (NeuralLayer*)malloc(n_layers * sizeof(NeuralLayer));
+	
+	net->input = &layers[0];
+	net->hidden = (net->n_hidden ? &layers[1] : NULL);
+	net->output = &layers[n_layers - 1];
+
+	/* init each Layer */
+	initLayer(&layers[0], n_nodes[0], NULL);
+	for (i = 1; i < n_layers; i++)
+	{
+		initLayer(&layers[i], n_nodes[i], &layers[i-1]);
+	}
+
+	/* the end */
+}
+void releaseNet(NeuralNet* net)
+{
+	int i;
+	for (i = 0; i < net->n_hidden + 2; i++)
+	{
+		releaseLayer(&(net->input[i]));
+	}
+	free(net->input);
+	net->n_hidden = 0;
+	net->input = net->hidden = net->output = NULL;
+}
+
+void caculateNet(NeuralNet* net, float* input)
+{
+	int i;
+	/* input layer */
+	setLayerValue(net->input, input);
+	/* hidden layers */
+	for (i = 0; i < net->n_hidden; i++)
+	{
+		caculate(&(net->hidden[i]));
+	}
+	/* output layer */
+	caculate(net->output);
+}
+
+float evolveNet(NeuralNet* net, float* input, float* dest)
+{
+	int i;
+	float error;
+	/* forward caculate */
+	caculateNet(net, input);
+
+	/* backword adjust */
+	
+ 	/* 1. caculate error */
+	error = countFinalError(net->output, dest) / 2;
+	/* for hidden layers if exist */
+	for (i = net->n_hidden; i > 0; i--)
+	{
+		/* nextlayer = hidden[n_hidden .. 1] */
+		countHiddenError(&net->hidden[i]);
+	}
+	/* 2. adjust wieghts */
+	adjustWeights(net->output);
+	for (i = 0; i < net->n_hidden; i++)
+	{
+		adjustWeights(&net->hidden[i]);
+	}
+	return error;
+}
+
+

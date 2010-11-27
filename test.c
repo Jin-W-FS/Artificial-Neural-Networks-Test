@@ -6,7 +6,11 @@
 /* test */
 int main()
 {
-	NeuralLayer input, hidden, output;
+	NeuralNet net;
+	int n_nodes[] = {
+		2, 2, 1
+	};
+	
 	float inputf[2];
 	float result, error;
 	int i, ok, n = 0;
@@ -18,45 +22,32 @@ int main()
 		0, 1, 1, 0
 	};
 
-	initLayer(&input, 2, NULL);
-	initLayer(&hidden, 2, &input);
-	initLayer(&output, 1, &hidden);
 	
+	initNet(&net, 3, n_nodes);
+
 	do
 	{
 		printf("\n----%3d ----\n", n++);
 		ok = 1;
 		for (i = 0; i < 4; i++)
 		{
-			setLayerValue(&input, sample[i]);
-			caculate(&hidden);
-			caculate(&output);
-			
-			printf("%f\t%f ->\t%f\n", input.result[0], input.result[1], output.result[0]);
-
-			error = countFinalError(&output, sample_result[i]) / 2;
-			countHiddenError(&output);
-			adjustWeights(&output);
-			adjustWeights(&hidden);
-
-			ok = ok && (error < 0.05);
+			error = evolveNet(&net, sample[i], sample_result[i]);
+			printf("%f %f =>\t%f\n",			\
+			       net.input->result[0], net.input->result[1], \
+			       net.output->result[0]);
+			ok = (ok && (error < 0.05));
 		}
 	}while(!ok);
 	
 	printf("\nnow start a test:\n");
 	while(scanf("%f %f", &inputf[0], &inputf[1]) == 2)
 	{
-		setLayerValue(&input, inputf);
-		caculate(&hidden);
-		caculate(&output);
-		
-		result = output.result[0];
-		printf("%f XOR %f = %f\n", inputf[0], inputf[1], result);
+		caculateNet(&net, inputf);
+		result = net.output->result[0];
+		printf("%f XOR %f = %d\n", inputf[0], inputf[1], result > 0.5);
 	}
 
-	releaseLayer(&input);
-	releaseLayer(&hidden);
-	releaseLayer(&output);
+	releaseNet(&net);
 
 	return 0;
 }
