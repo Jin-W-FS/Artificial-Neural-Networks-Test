@@ -1,16 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "NeuralLayer.h"
 
 /* test */
-int main()
+int main(int argc, char* argv[])
 {
 	NeuralNet net;
 	int n_nodes[] = {
 		2, 2, 1
 	};
-	
 	float inputf[2];
 	float result, error;
 	int i, ok, n = 0;
@@ -22,9 +22,24 @@ int main()
 		0, 1, 1, 0
 	};
 
+	FILE* fl = NULL;
 	
-	initNet(&net, 3, n_nodes);
-
+	/* init, or load from file */
+	if (argc >= 3 && strcmp(argv[1], "-f") == 0)
+		fl = fopen(argv[2], "r");
+	
+	if (fl)
+	{
+		readNet(fl, &net);
+		fclose(fl);
+	}
+	else
+	{
+		initNet(&net, 3, n_nodes);
+	}
+	
+	
+	/* train */
 	do
 	{
 		printf("\n----%3d ----\n", n++);
@@ -47,8 +62,10 @@ int main()
 		printf("%f XOR %f = %d\n", inputf[0], inputf[1], result > 0.5);
 	}
 
+	writeNet(stdout, &net);
+	
 	releaseNet(&net);
-
+	
 	return 0;
 }
 

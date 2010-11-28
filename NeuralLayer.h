@@ -1,6 +1,8 @@
 #ifndef _ANN_LAYER_JIN
 #define _ANN_LAYER_JIN
 
+#include <stdio.h>
+
 /* layer */
 typedef struct _NeuralLayer
 {
@@ -23,6 +25,10 @@ typedef struct _NeuralLayer
 /* init the ANN layer; on input layer last_layer = 0 */
 void initLayer(NeuralLayer* layer, int n_nodes, NeuralLayer* last_layer);
 void releaseLayer(NeuralLayer* layer);
+
+/* store the layer: n_nodes, n_inputs, learning_rate, exp_rate, weights. */
+int readLayer(FILE* file, NeuralLayer* layer);
+int writeLayer(FILE* file, NeuralLayer* layer);
 
 /* notice: functions below will apply the caculate without recursive;
  * i don't think it convient, however, perhaps it's more flexable in C
@@ -48,8 +54,7 @@ void setLayerValue(NeuralLayer* input_layer, float* value);
 typedef struct _NeuralNet
 {
 	int n_hidden;
-	float epsino;
-	
+
 	NeuralLayer* output;
 	NeuralLayer* hidden;
 	NeuralLayer* input;
@@ -58,6 +63,10 @@ typedef struct _NeuralNet
 /* n_nodes: nodes of each layer, from input towords output, length: n_layers; */
 void initNet(NeuralNet* net, int n_layers, int* n_nodes);
 void releaseNet(NeuralNet* net);
+
+/* store the net: n_layers & layers  */
+int readNet(FILE* file, NeuralNet* net);
+int writeNet(FILE* file, NeuralNet* net);
 
 void caculateNet(NeuralNet* net, float* input);
 /* use input[n] & dest[n] to evolve once */
