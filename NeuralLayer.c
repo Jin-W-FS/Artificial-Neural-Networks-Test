@@ -283,7 +283,7 @@ int readNet(FILE* file, NeuralNet* net)
 	/* init */
 	for (i = 0; i < net->n_hidden + 2; i++)
 	{
-		readLayer(file, &(net->input[i]));
+		assert(readLayer(file, &(net->input[i])) > 0);
 		if (i)
 			net->input[i].last = &(net->input[i-1]);
 	}
