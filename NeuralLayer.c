@@ -13,7 +13,7 @@ static void init_weights(float* weights, int len)
 		weights[i] = (float)((rand() % 65536) / 32768.0 - 1);
 }
 /* use layer->n_inputs, layer->n_nodes & layer->last */
-static void allocLayer(NeuralLayer* layer)
+void allocLayer(NeuralLayer* layer)
 {
 	layer->result = (float*)malloc(layer->n_nodes * sizeof(float));
 	if (layer->n_inputs)
@@ -150,7 +150,7 @@ void setLayerValue(NeuralLayer* input_layer, float* value)
 	memcpy(input_layer->result, value, input_layer->n_nodes * sizeof(float));
 }
 
-static void allocNet(NeuralNet* net)
+void allocNet(NeuralNet* net)
 {
 	NeuralLayer* layers = (NeuralLayer*)malloc((net->n_hidden + 2) * sizeof(NeuralLayer));
 	
@@ -231,32 +231,36 @@ float evolveNet(NeuralNet* net, float* input, float* dest)
 	return error;
 }
 
-/* for store the net */
+/* store the net */
 /* store the layer: n_nodes, n_inputs, learning_rate, exp_rate & weights. */
 const char* LAYER_HEADER = "%d %d %f %f";
 const char* NET_HEADER = "%d";
 
-static int readMatrix(FILE* file, float* mat, int width, int height);
-static int writeMatrix(FILE* file, float* mat, int width, int height);
+static int readMat(FILE* file, float* mat, int width, int height);
+static int writeMat(FILE* file, float* mat, int width, int height);
 
-int writeLayer(FILE* file, NeuralLayer* layer)
+int writeLayerHeader(FILE* file, NeuralLayer* layer)
 {
 	if (fprintf(file, LAYER_HEADER,					\
 		    layer->n_nodes, layer->n_inputs, layer->learning_rate, layer->exp_rate) < 0)
+	{
+		perror("write layer error");
 		return -1;
+	}
 	fputc('\n', file);
-	return writeMatrix(file, layer->weights, layer->n_inputs + 1, layer->n_nodes);
+	return 0;
 }
-int readLayer(FILE* file, NeuralLayer* layer)
+int readLayerHeader(FILE* file, NeuralLayer* layer)
 {
 	if (fscanf(file, LAYER_HEADER,					\
 		   &(layer->n_nodes), &(layer->n_inputs), &(layer->learning_rate), &(layer->exp_rate)) != 4)
+	{
+		perror("read layer error");
 		return -1;
-
+		
+	}
 	layer->last = NULL;
-	allocLayer(layer);
-	
-	return readMatrix(file, layer->weights, layer->n_inputs + 1, layer->n_inputs);
+	return 0;
 }
 
 int writeNet(FILE* file, NeuralNet* net)
@@ -266,7 +270,9 @@ int writeNet(FILE* file, NeuralNet* net)
 	fputc('\n', file);
 	for (i = 0; i < net->n_hidden + 2; i++)
 	{
-		writeLayer(file, &(net->input[i]));
+		writeLayerHeader(file, &(net->input[i]));
+		writeMat(file, net->input[i].weights,
+			 net->input[i].n_inputs + 1, net->input[i].n_nodes);
 	}
 	fputc('\n', file);
 	return 0;
@@ -283,36 +289,52 @@ int readNet(FILE* file, NeuralNet* net)
 	/* init */
 	for (i = 0; i < net->n_hidden + 2; i++)
 	{
-		assert(readLayer(file, &(net->input[i])) > 0);
+		readLayerHeader(file, &(net->input[i])) > 0;
+		allocLayer(&(net->input[i]));
+		readMat(file, net->input[i].weights,
+			 net->input[i].n_inputs + 1, net->input[i].n_nodes);
 		if (i)
 			net->input[i].last = &(net->input[i-1]);
 	}
 	return 0;
 }
 
-
-static int readMatrix(FILE* file, float* mat, int width, int height)
+static int readMat(FILE* file, float* mat, int width, int height)
 {
 	int i, j;
+	if (mat == NULL)	/* input layer */
+		return 0;
+	
 	for (i = 0; i < height; i++)
+	{
 		for (j = 0; j < width; j++)
+		{
 			if (fscanf(file, "%f", mat++) != 1)
+			{
+				perror("read mat");
 				return -1;
+			}
+		}
+	}
 	return 0;
 }
-static int writeMatrix(FILE* file, float* mat, int width, int height)
+static int writeMat(FILE* file, float* mat, int width, int height)
 {
 	int i, j;
-	if (mat == NULL) return 0;
+	if (mat == NULL)	/* input layer */
+		return 0;
 	
 	for (i = 0; i < height; i++)
 	{
 		for (j = 0; j < width; j++)
 		{
 			if (fprintf(file, "%f ", *mat++) < 0)
+			{
+				perror("write mat");
 				return -1;
+			}
 		}
-		putchar('\n');
+		fputc('\n', file);
 	}
 	return 0;
 }
