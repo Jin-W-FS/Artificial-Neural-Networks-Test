@@ -1,6 +1,4 @@
-Test 1:
-Simulate 
-	 y = (sin(x) + cos(x)) / 2, -pi <= x <= pi
-using a 3-layer BP Network
+Created for test some of the Artificial Neural Networks.
 
-Author Jin.W.FSeer@gmail.com
+Author: Jin.W.FSeer@gmail.com
+git: git@github.com:Jin-W-FS/Artificial-Neural-Networks-Test.git
