@@ -42,15 +42,17 @@ float out_adj(float y0){
 */
 
 /* y = func(x) */
+
+#define N_SAMPLES 11
+#define N_INPUTS  1
+#define N_OUTPUTS 2
+#define N_HIDDEN_ADVISE  (N_INPUTS + (int)(0.618 * (N_INPUTS - N_OUTPUTS) + 1))
+#define N_HIDDEN  4
+
+#define SUM_ERROR 0.0001
+
 float input_sect[2] = { 0, 1 };
-float output_sect[2] = { 0, 1 };
-
-#define N_SAMPLES 8
-#define N_INPUTS  9
-#define N_OUTPUTS 1
-#define N_HIDDEN  (N_INPUTS + (int)(0.618 * (N_INPUTS - N_OUTPUTS) + 1))
-
-#define SUM_ERROR 0.001
+float output_sect[2] = { -PI, PI };
 
 int n_nodes[] = {
 	N_INPUTS, N_HIDDEN, N_OUTPUTS
@@ -74,6 +76,8 @@ int main(int argc, char* argv[])
 	float sample_input[N_SAMPLES][N_INPUTS];
 	float sample_result[N_SAMPLES][N_OUTPUTS];
 	float test_input[N_INPUTS];
+	float test_output[N_OUTPUTS];
+
 	FILE* fl = NULL;
 
 	/* init samples */
@@ -111,7 +115,11 @@ int main(int argc, char* argv[])
 	while(read_input(test_input, stdin) == N_INPUTS)
 	{
 		caculateNet(&net, test_input);
-		write_output(net.output->result, stdout);
+		for (i = 0; i < N_OUTPUTS; i++)
+		{
+			test_output[i] = out_adj(net.output->result[i]);
+		}
+		write_output(test_output, stdout);
 	}
 
 	/* print & save Net */
@@ -126,11 +134,6 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-float func(float x)
-{
-	return ((sin(x) + cos(x)) / 2);
-}
-
 float adjust(float x, float in_sect[2], float out_sect[2])
 {
 	assert(in_sect[1] - in_sect[0] != 0);
@@ -139,28 +142,24 @@ float adjust(float x, float in_sect[2], float out_sect[2])
 		(out_sect[1] - out_sect[0]);
 }
 
-const float sample_in[N_SAMPLES][N_INPUTS] =
-{
-	{ 1, 1, 1, 0, 1, 0, 0, 1, 0 },
-	{ 1, 0, 0, 1, 1, 1, 1, 0, 0 },
-	{ 0, 1, 0, 0, 1, 0, 1, 1, 1 },
-	{ 0, 0, 1, 1, 1, 1, 0, 0, 1 },
-	
-	{ 1, 0, 0, 1, 0, 0, 1, 1, 1 },
-	{ 0, 0, 1, 0, 0, 1, 1, 1, 1 },
-	{ 1, 1, 1, 0, 0, 1, 0, 0, 1 },
-	{ 1, 1, 1, 1, 0, 0, 1, 0, 0 }
-};
-const float sample_out[N_SAMPLES][N_OUTPUTS] =
-{
-	0, 0, 0, 0,
-	1, 1, 1, 1
-};
-
 void gen_samples(float input[N_SAMPLES][N_INPUTS], float result[N_SAMPLES][N_OUTPUTS])
 {
-	memcpy(&input[0][0], &sample_in[0][0], N_SAMPLES * N_INPUTS * sizeof(float));
-	memcpy(&result[0][0], &sample_out[0][0], N_SAMPLES * N_OUTPUTS * sizeof(float));
+	FILE* sample_input = fopen("samples.log", "r");
+	int i, j;
+	float tmp;
+	for (i = 0; i < N_SAMPLES; i++)
+	{
+		for (j = 0; j < N_INPUTS; j++)
+		{
+			fscanf(sample_input, "%f", &tmp);
+			input[i][j] = tmp;
+		}
+		for (j = 0; j < N_OUTPUTS; j++)
+		{
+			fscanf(sample_input, "%f", &tmp);
+			result[i][j] = out_adj_rev(tmp);
+		}
+	}
 }
 int read_input(float input[N_INPUTS], FILE* in)
 {
