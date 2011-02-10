@@ -49,7 +49,7 @@ float out_adj(float y0){
 #define N_HIDDEN_ADVISE  (N_INPUTS + (int)(0.618 * (N_INPUTS - N_OUTPUTS) + 1))
 #define N_HIDDEN  4
 
-#define SUM_ERROR 0.0001
+#define SUM_ERROR 0.000001
 
 float input_sect[2] = { 0, 1 };
 float output_sect[2] = { -PI, PI };
