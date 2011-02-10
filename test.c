@@ -10,10 +10,19 @@ char font[6][17] = {
 	"*  *"					\
 	"****",			/* 0 */
 
+<<<<<<< HEAD
 	"  * "					\
 	"  * "					\
 	"  * "					\
 	"  * ",			/* 1 */
+=======
+/* train: y = (sin(2 * pi * x) + 1)/2, x in [0, 1) */
+#define func(x) ((sin(2 * 3.14159265 * (x)) + 1) / 2)
+#define N_SAMPLES 13
+#define SUM_ERROR 0.01
+
+const char* save_net = "./NeuralNetwork.log";
+>>>>>>> BP-Network
 
 	"****"					\
 	"  **" 					\
@@ -48,8 +57,33 @@ void print_font(char* font)
 		
 void char_to_int(char* src, int* dst)
 {
+<<<<<<< HEAD
 	int i;
 	for (i = 0; i < 16; i++)
+=======
+	NeuralNet net;
+	int n_nodes[] = {
+		1, 23, 1
+	};
+	float input, result, error, sumerr;
+	int i, n = 0;
+
+	float sample_input[N_SAMPLES];
+	float sample_result[N_SAMPLES];
+	
+	FILE* fl = NULL;
+
+	/* init samples */
+	gen_samples(sample_input, sample_result);
+
+	/* init net, or load from file */
+	if (argc >= 2 && strcmp(argv[1], "-l") == 0)
+	{
+		fl = fopen(save_net, "r");
+	}
+
+	if (fl)
+>>>>>>> BP-Network
 	{
 		dst[i] = ((src[i] == '*') ? 1 : -1);
 	}
@@ -92,6 +126,7 @@ void train(NeuralLayer* hnet, int sample[6][16])
 				hnet->weights[i * (hnet->n_inputs + 1) + j] = sum;
 			}
 		}
+<<<<<<< HEAD
 	}
 
 }
@@ -107,6 +142,14 @@ void test(NeuralLayer* hnet, char* input)
 	print_font(input);
 
 	do
+=======
+		printf("G %d : sum err = %f\n", n++, sumerr);
+	}while(sumerr > SUM_ERROR);
+
+	/* print sample */
+	printf("\nnow start a test:\n samples:\n");
+	for (i = 0; i < N_SAMPLES; i++)
+>>>>>>> BP-Network
 	{
 		caculate(hnet);
 		printf("-- %d --\n", ++n);
@@ -115,6 +158,7 @@ void test(NeuralLayer* hnet, char* input)
 	}while(!hnet->stable);
 }
 
+<<<<<<< HEAD
 char test_sample[17] =
 	"****"					\
 	"  **"					\
@@ -128,12 +172,17 @@ void make_noise(char* test_sample)
 {
 	int i;
 	for (i = 0; i < 16; i++)
+=======
+	/* run test */
+	while(scanf("%f", &input) == 1)
+>>>>>>> BP-Network
 	{
 		if ((rand() % 65536 / 65536.0) < THRESHOLD)
 			test_sample[i] = REVERSEC(test_sample[i]);
 	}
 }
 
+<<<<<<< HEAD
 int main(int argc, char* argv[])
 {
 	int n;
@@ -153,6 +202,16 @@ int main(int argc, char* argv[])
 		/* make_noise(test_sample); */
 		test(&hnet, test_sample);
 	}
+=======
+	/* print & save Net */
+	writeNet(stdout, &net);
+	if ((fl = fopen(save_net, "w")) != 0)
+		writeNet(fl, &net);
+	else
+		fprintf(stderr, "Error in Save Net.");
+
+	releaseNet(&net);
+>>>>>>> BP-Network
 	
 
 	return 0;

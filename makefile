@@ -12,7 +12,6 @@ test.o:NeuralLayer.h
 
 NeuralLayer.o:NeuralLayer.h
 
-
 .PHONY:clean
 
 clean:
