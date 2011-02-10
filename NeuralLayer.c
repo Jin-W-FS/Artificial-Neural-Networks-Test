@@ -6,234 +6,148 @@
 #include <math.h>
 #include <assert.h>
 
-static void init_weights(int* weights, int len)
+void initLayer(NeuralLayer* layer, int n_inputs)
 {
-	memset(weights, 0, len * sizeof(int));
-}
-/* use layer->n_inputs, layer->n_nodes & layer->last */
-void allocLayer(NeuralLayer* layer)
-{
-	layer->result = (int*)malloc(layer->n_nodes * sizeof(int));
-	if (layer->n_inputs)
-	{
-		layer->weights = (int*)malloc(layer->n_nodes * (layer->n_inputs + 1) * sizeof(int));
-	}
-	else
-	{
-		layer->weights = NULL;
-	}
-}
-
-void initLayer(NeuralLayer* layer, int n_nodes, NeuralLayer* last_layer)
-{
-	layer->n_nodes = n_nodes;
-	layer->n_inputs = (last_layer ? last_layer->n_nodes : 0);
-	layer->last = last_layer;
-
-	allocLayer(layer);
-	if (layer->weights)
-		init_weights(layer->weights, n_nodes * (layer->n_inputs + 1));
+	assert(n_inputs > 0);
+	layer->n_inputs = n_inputs;
+	layer->result = (int*)malloc(layer->n_inputs * sizeof(int));
+	layer->weights = (int*)malloc(layer->n_inputs * (layer->n_inputs + 1) * sizeof(int));
 }
 
 void releaseLayer(NeuralLayer* layer)
 {
 	if (layer)
 	{
-		layer->n_nodes = 0;
+		layer->n_inputs = 0;
 		free(layer->result);
 		free(layer->weights);
 	}
 }
 
-/* threshold function */
-int sng(int x)
+int sgn(int x)
 {
-	return (x < 0) ? -1 : 1;
+	return ((x == 0) ? 0 : ((x < 0) ? -1 : 1));
 }
 
-void caculate(NeuralLayer* layer)
+/* directly set value of result, for input layer */
+void setInputValue(NeuralLayer* layer, int* value)
+{
+	int i;
+	for (i = 0; i < layer->n_inputs; i++)
+	{
+		layer->result[i] = sgn(value[i]);
+	}
+}
+
+#define weight_at(layer, i_node, i_input) (layer->weights[(i_node) * (layer->n_inputs + 1) + (i_input)])
+/* return is_stable */
+int cacul_once(NeuralLayer* layer)
 {
 	int i, j;
 	int sum, sig;
-	
+	int is_stable;
+
 	assert(layer);
 
-	layer->stable = 1;
-	for (i = 0; i < layer->n_nodes; i++)
+	is_stable = 1;
+	for (i = 0; i < layer->n_inputs; i++)
 	{
 		sum = 0;
 		for (j = 0; j < layer->n_inputs; j++)
 		{
-			sum += layer->weights[i * layer->n_inputs + j] * layer->last->result[j];
+			sum += weight_at(layer, i, j) * layer->result[j];
 		}
-		/* as threshold: input = 1 */
-		sum += layer->weights[i * layer->n_inputs + j] * 1;
-		sig = sng(sum);
+		/* the threshold: theta = 1 */
+		sum += weight_at(layer, i, j) * 1;
 		
-		if (sum && layer->result[i] != sig)
+		sig = sgn(sum);
+		
+		if (sig == 0 || sig == layer->result[i])
 		{
-			layer->stable = 0; /* layer changed */
+			/* unchange: is_stable &&= 1 */
+		}
+		else
+		{
 			layer->result[i] = sig;
+			is_stable = 0;
 		}
 	}
+	return is_stable;
+}
+int caculate(NeuralLayer* layer)
+{
+	int n_times;
+	for (n_times = 0; n_times < MAX_CACUL_TIMES; n_times++)
+	{
+		if (cacul_once(layer))
+			return 1;
+	}
+	return 0;
 }
 
-/* directly set value of result, for input layer */
-void setLayerValue(NeuralLayer* input_layer, float* value)
+/* training: samples as Matrix of size n_inputs * n_samples */
+void setLayerWeights(NeuralLayer* layer, int* samples, int n_samples)
 {
-	memcpy(input_layer->result, value, input_layer->n_nodes * sizeof(float));
+	int i, j, k;
+	for (i = 0; i < layer->n_inputs; i++)
+	{
+		for (j = 0; j < i; j++)
+		{
+			int tmp = 0;
+			for (k = 0; k < n_samples; k++)
+			{
+				tmp += samples[k * layer->n_inputs + i] * samples[k * layer->n_inputs + j];
+			}
+			weight_at(layer, i, j) = tmp;
+			weight_at(layer, j, i) = tmp;
+		}
+		weight_at(layer, i, i) = 0;
+		weight_at(layer, i, layer->n_inputs) = 0;
+	}
 }
 
-void allocNet(NeuralNet* net)
-{
-	NeuralLayer* layers = (NeuralLayer*)malloc((net->n_hidden + 2) * sizeof(NeuralLayer));
 	
-	net->input = &layers[0];
-	net->hidden = (net->n_hidden ? &layers[1] : NULL);
-	net->output = &layers[net->n_hidden + 1];
-}
-void initNet(NeuralNet* net, int n_layers, int* n_nodes)
+/* store the layer: n_inputs & weights */
+const char* LAYER_HEADER = "%d";
+
+static int readMat(FILE* file, int* mat, int width, int height);
+static int writeMat(FILE* file, int* mat, int width, int height);
+
+int writeLayer(FILE* file, NeuralLayer* layer)
 {
 	int i;
-
-	assert(n_layers >= 2);
-	
-	net->n_hidden = n_layers - 2;
-	/* allocate memory */
-	allocNet(net);
-	
-	/* init each Layer */
-	srand((unsigned int)time(NULL));
-	
-	initLayer(net->input, n_nodes[0], NULL);
-	for (i = 1; i < n_layers; i++)
+	fprintf(file, LAYER_HEADER, layer->n_inputs);
+	fputc('\n', file);
+	if (writeMat(file, layer->weights, layer->n_inputs + 1, layer->n_inputs) < 0)
 	{
-		initLayer(&(net->input[i]), n_nodes[i], &(net->input[i-1]));
-	}
-
-	/* the end */
-}
-void releaseNet(NeuralNet* net)
-{
-	int i;
-	for (i = 0; i < net->n_hidden + 2; i++)
-	{
-		releaseLayer(&(net->input[i]));
-	}
-	free(net->input);
-	net->n_hidden = 0;
-	net->input = net->hidden = net->output = NULL;
-}
-
-void caculateNet(NeuralNet* net, float* input)
-{
-	int i;
-	/* input layer */
-	setLayerValue(net->input, input);
-	/* hidden layers */
-	for (i = 0; i < net->n_hidden; i++)
-	{
-		caculate(&(net->hidden[i]));
-	}
-	/* output layer */
-	caculate(net->output);
-}
-
-float evolveNet(NeuralNet* net, float* input, float* dest)
-{
-	int i;
-	float error;
-	/* forward caculate */
-	caculateNet(net, input);
-
-	/* backword adjust */
-	
- 	/* 1. caculate error */
-	error = countFinalError(net->output, dest) / 2;
-	/* for hidden layers if exist */
-	for (i = net->n_hidden; i > 0; i--)
-	{
-		/* nextlayer = hidden[n_hidden .. 1] */
-		countHiddenError(&net->hidden[i]);
-	}
-	/* 2. adjust wieghts */
-	adjustWeights(net->output);
-	for (i = 0; i < net->n_hidden; i++)
-	{
-		adjustWeights(&net->hidden[i]);
-	}
-	return error;
-}
-
-/* store the net */
-/* store the layer: n_nodes, n_inputs, learning_rate, exp_rate & weights. */
-const char* LAYER_HEADER = "%d %d %f %f";
-const char* NET_HEADER = "%d";
-
-static int readMat(FILE* file, float* mat, int width, int height);
-static int writeMat(FILE* file, float* mat, int width, int height);
-
-int writeLayerHeader(FILE* file, NeuralLayer* layer)
-{
-	if (fprintf(file, LAYER_HEADER,					\
-		    layer->n_nodes, layer->n_inputs, layer->learning_rate, layer->exp_rate) < 0)
-	{
-		perror("write layer error");
+		perror("write mat");
 		return -1;
 	}
+	
 	fputc('\n', file);
 	return 0;
 }
-int readLayerHeader(FILE* file, NeuralLayer* layer)
+int readLayer(FILE* file, NeuralLayer* layer)
 {
-	if (fscanf(file, LAYER_HEADER,					\
-		   &(layer->n_nodes), &(layer->n_inputs), &(layer->learning_rate), &(layer->exp_rate)) != 4)
+	int n_inputs;
+	if (fscanf(file, LAYER_HEADER, &n_inputs) != 1)
 	{
-		perror("read layer error");
+		perror("scan n_inputs");
 		return -1;
-		
 	}
-	layer->last = NULL;
-	return 0;
-}
-
-int writeNet(FILE* file, NeuralNet* net)
-{
-	int i;
-	fprintf(file, NET_HEADER, net->n_hidden);
-	fputc('\n', file);
-	for (i = 0; i < net->n_hidden + 2; i++)
-	{
-		writeLayerHeader(file, &(net->input[i]));
-		writeMat(file, net->input[i].weights,
-			 net->input[i].n_inputs + 1, net->input[i].n_nodes);
-	}
-	fputc('\n', file);
-	return 0;
-}
-int readNet(FILE* file, NeuralNet* net)
-{
-	int i;
-	if (fscanf(file, NET_HEADER, &(net->n_hidden)) != 1)
-	    return -1;
-
+	
 	/* allocate */
-	assert(net->n_hidden >= 0);
-	allocNet(net);
-	/* init */
-	for (i = 0; i < net->n_hidden + 2; i++)
+	initLayer(layer, n_inputs);
+	/* init weight */
+	if (readMat(file, layer->weights, layer->n_inputs + 1, layer->n_inputs) < 0)
 	{
-		readLayerHeader(file, &(net->input[i])) > 0;
-		allocLayer(&(net->input[i]));
-		readMat(file, net->input[i].weights,
-			 net->input[i].n_inputs + 1, net->input[i].n_nodes);
-		if (i)
-			net->input[i].last = &(net->input[i-1]);
+		perror("read mat");
+		return -1;
 	}
 	return 0;
 }
 
-static int readMat(FILE* file, float* mat, int width, int height)
+static int readMat(FILE* file, int* mat, int width, int height)
 {
 	int i, j;
 	if (mat == NULL)	/* input layer */
@@ -243,7 +157,7 @@ static int readMat(FILE* file, float* mat, int width, int height)
 	{
 		for (j = 0; j < width; j++)
 		{
-			if (fscanf(file, "%f", mat++) != 1)
+			if (fscanf(file, "%d", mat++) != 1)
 			{
 				perror("read mat");
 				return -1;
@@ -252,7 +166,7 @@ static int readMat(FILE* file, float* mat, int width, int height)
 	}
 	return 0;
 }
-static int writeMat(FILE* file, float* mat, int width, int height)
+static int writeMat(FILE* file, int* mat, int width, int height)
 {
 	int i, j;
 	if (mat == NULL)	/* input layer */
@@ -262,7 +176,7 @@ static int writeMat(FILE* file, float* mat, int width, int height)
 	{
 		for (j = 0; j < width; j++)
 		{
-			if (fprintf(file, "%f ", *mat++) < 0)
+			if (fprintf(file, "%d ", *mat++) < 0)
 			{
 				perror("write mat");
 				return -1;
