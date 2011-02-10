@@ -72,6 +72,7 @@ float threshold_slope_approx(float exp_rate, float y)
 #	define threshold_slope threshold_slope_strick
 #endif
 
+#define weight_at(layer, i_node, i_input) (layer->weights[(i_node) * (layer->n_inputs + 1) + (i_input)])
 void caculate(NeuralLayer* layer)
 {
 	int i, j;
@@ -84,10 +85,10 @@ void caculate(NeuralLayer* layer)
 		sum = 0;
 		for (j = 0; j < layer->n_inputs; j++)
 		{
-			sum += layer->weights[i * layer->n_inputs + j] * layer->last->result[j];
+			sum += weight_at(layer, i, j) * layer->last->result[j];
 		}
 		/* as threshold: input = 1 */
-		sum += layer->weights[i * layer->n_inputs + j] * 1;
+		sum += weight_at(layer, i, j) * 1;
 		layer->result[i] = threshold(layer->exp_rate, sum);
 	}
 }
@@ -115,13 +116,14 @@ void countHiddenError(NeuralLayer* next_layer)
 	NeuralLayer* layer = next_layer->last;
 	int i, j;
 	
-	if (!layer) return;
+	if (layer == 0) return;
 	for (i = 0; i < layer->n_nodes; i++)
 	{
+		/* error[i] = next_layer:SUM(error[j] * weights[j, i]) * layer:k[i] */
 		float error = 0;
 		for(j = 0; j < next_layer->n_nodes; j++)
 		{
-			error += next_layer->error[j] * next_layer->weights[j * next_layer->n_nodes + i];
+			error += next_layer->error[j] * weight_at(next_layer, j, i);
 		}
 		layer->error[i] = error * threshold_slope(layer->exp_rate, layer->result[i]);
 	}
@@ -135,11 +137,12 @@ void adjustWeights(NeuralLayer* layer)
 	{
 		for (j = 0; j < layer->n_inputs; j++)
 		{
-			layer->weights[i * layer->n_inputs + j] +=	\
+			/* w[i, j] */
+			weight_at(layer, i, j) +=			\
 				layer->learning_rate * layer->error[i] * layer->last->result[j];
 		}
-		/* threshold: as input = 1 (OR -1) */
-		layer->weights[i * layer->n_inputs + j] +=		\
+		/* theta[i]: w[i, n + 1] */
+		weight_at(layer, i, j) +=				\
 			layer->learning_rate * layer->error[i] * 1;
 	}
 }
@@ -222,7 +225,7 @@ float evolveNet(NeuralNet* net, float* input, float* dest)
 		/* nextlayer = hidden[n_hidden .. 1] */
 		countHiddenError(&net->hidden[i]);
 	}
-	/* 2. adjust wieghts */
+	/* 2. adjust weights */
 	adjustWeights(net->output);
 	for (i = 0; i < net->n_hidden; i++)
 	{
