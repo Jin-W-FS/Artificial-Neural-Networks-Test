@@ -27,22 +27,36 @@ void swap_image(int dst[N_INPUTS], int src[N_INPUTS], float chance);
 
 int main(int argc, char* argv[])
 {
-	
-	/* init */
+	NeuralLayer hnet;
+
 	int *samples = malloc(N_SAMPLES * N_INPUTS * sizeof(int));
 	int *test_input = malloc(N_INPUTS * sizeof(int));
-	
-	FILE* input_file, output_file;
-	
-	NeuralLayer hnet;
-	input_file = fopen(f_samples, "r");
-	gen_samples((int (*)[N_INPUTS])samples, input_file);
-	fclose(input_file);
 
-	initLayer(&hnet, N_INPUTS);
-	setLayerWeights(&hnet, samples, N_SAMPLES);
+	FILE* fl = NULL;
+	
+	/* get samples */
+	FILE* sample_input_file = fopen(f_samples, "r");
+	gen_samples((int (*)[N_INPUTS])samples, sample_input_file);
+	fclose(sample_input_file);
 
-	/* test */
+	/* init net : load from file OR train from samples */
+	if (argc >= 2 && strcmp(argv[1], "-l") == 0)
+	{
+		fl = fopen(save_net, "r");
+	}
+
+	if (fl)
+	{
+		readLayer(fl, &hnet);
+		fclose(fl);
+	}
+	else
+	{
+		initLayer(&hnet, N_INPUTS);
+		setLayerWeights(&hnet, samples, N_SAMPLES);
+	}
+	
+	/* run test */
 	printf("now start a test,\n\tinput a char of (012346*9):");
 	while (1)
 	{
@@ -70,9 +84,11 @@ int main(int argc, char* argv[])
 	}
 
 	/* print & save Net */
-	writeLayer(stdout, &hnet);
-	
-	
+	fl = fopen(save_net, "w");
+	writeLayer(fl, &hnet);
+	fclose(fl);
+
+/* release resources */
 	releaseLayer(&hnet);
 	free(test_input);
 	free(samples);
