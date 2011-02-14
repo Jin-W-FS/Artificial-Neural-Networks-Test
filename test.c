@@ -4,6 +4,9 @@
 #include <math.h>
 #include <assert.h>
 
+/* posix: getopt */
+#include <unistd.h>
+
 #include "NeuralLayer.h"
 
 #ifndef PI
@@ -58,14 +61,25 @@ int n_nodes[] = {
 	N_INPUTS, N_HIDDEN, N_OUTPUTS
 };
 
-const char* save_net = "./NeuralNetwork.log";
-#define ERROR_OUTPUT stdout
-#define TEST_INPUT stdin
-#define TEST_OUTPUT stdout
-
 void gen_samples(float input[N_SAMPLES][N_INPUTS], float result[N_SAMPLES][N_OUTPUTS]);
 int read_input(float input[N_INPUTS], FILE* in);
 int write_output(float output[N_OUTPUTS], FILE* out);
+
+/* args analyse */
+struct _globalConfig
+{
+	/* mode */
+	int quiet;		/* -q */
+	
+	/* config file names */
+	const char* net_load;	/* -l,-n, default: retrain the net */
+	const char* net_save;	/* -s,-n, default: none */
+	const char* error_output; /* -e, default: none */
+	const char* test_input;	  /* -i, default: stdin */
+	const char* test_output;  /* -o, default: stdout */
+}globalConfig;
+const char* opts_analyse = "qn:l:s:e:i:o:";
+int opts_analyser(int argc, char* argv[]);
 
 int main(int argc, char* argv[])
 {
@@ -78,21 +92,28 @@ int main(int argc, char* argv[])
 	float test_input[N_INPUTS];
 	float test_output[N_OUTPUTS];
 
-	FILE* fl = NULL;
-
-	/* init samples */
-	gen_samples(sample_input, sample_result);
-
-	/* init net, or load from file */
-	if (argc >= 2 && strcmp(argv[1], "-l") == 0)
+	FILE *fnet, *ferror, *ftest_in, *ftest_out;
+	
+	/* opts analyse */
+	if (opts_analyser(argc, argv) < 0)
 	{
-		fl = fopen(save_net, "r");
+		perror("opts_anal");
+		return -1;
 	}
 
-	if (fl)
+	/* init samples */
+	if (!globalConfig.quiet)
+		fprintf(stderr, "loading samples...");
+	gen_samples(sample_input, sample_result);
+	
+	/* init net, or load from file */
+	fnet = NULL;
+	if (globalConfig.net_load && (fnet = fopen(globalConfig.net_load, "r")))
 	{
-		readNet(fl, &net);
-		fclose(fl);
+		if (!globalConfig.quiet)
+			fprintf(stderr, "complete\nloading net...");
+		readNet(fnet, &net);
+		fclose(fnet);
 	}
 	else
 	{
@@ -100,6 +121,11 @@ int main(int argc, char* argv[])
 	}
 	
 	/* train */
+	if (!globalConfig.quiet)
+			fprintf(stderr, "complete\ntraining...");
+	ferror = NULL;
+	if (globalConfig.error_output)
+		ferror = fopen(globalConfig.error_output, "w");
 	do
 	{
 		sumerr = 0;
@@ -107,28 +133,55 @@ int main(int argc, char* argv[])
 		{
 			sumerr += evolveNet(&net, sample_input[i], sample_result[i]);
 		}
-		/* print Generation & errors */
-		fprintf(ERROR_OUTPUT, "%d\t%f\n", n++, sumerr);
+		/* print Generation & Errors */
+		if (ferror)
+			fprintf(ferror, "%d\t%f\n", n++, sumerr);
+		
 	}while(sumerr > SUM_ERROR);
+	if (ferror)
+		fclose(ferror);
 	
 	/* run test */
-	while(read_input(test_input, stdin) == N_INPUTS)
+	if (!globalConfig.quiet)
+		fprintf(stderr, "complete\nNow start a test:\n");
+
+	if (globalConfig.test_input)
+		ftest_in = fopen(globalConfig.test_input, "r");
+	else
+		ftest_in = stdin;
+
+	if (globalConfig.test_output)
+		ftest_out = fopen(globalConfig.test_output, "w");
+	else
+		ftest_out = stdout;
+	
+	while(read_input(test_input, ftest_in) == N_INPUTS)
 	{
 		caculateNet(&net, test_input);
 		for (i = 0; i < N_OUTPUTS; i++)
 		{
 			test_output[i] = out_adj(net.output->result[i]);
 		}
-		write_output(test_output, stdout);
+		write_output(test_output, ftest_out);
 	}
+	if (ftest_in != stdin)
+		fclose(ftest_in);
+	if (ftest_out != stdout)
+		fclose(ftest_out);
 
+	
 	/* print & save Net */
-	writeNet(stdout, &net);
-	if ((fl = fopen(save_net, "w")) != 0)
-		writeNet(fl, &net);
-	else
-		fprintf(stderr, "Error in Save Net.");
+	if (globalConfig.net_save && (fnet = fopen(globalConfig.net_save, "w")))
+	{
+		if (!globalConfig.quiet)
+			fprintf(stderr, "writing net...");
+		writeNet(fnet, &net);
+		fclose(fnet);
+		if (!globalConfig.quiet)
+			fprintf(stderr, "complete\nexit.\n");
 
+	}
+	
 	releaseNet(&net);
 	
 	return 0;
@@ -184,3 +237,45 @@ int write_output(float output[N_OUTPUTS], FILE* out)
 	return i;
 }
 
+int opts_analyser(int argc, char* argv[])
+{
+	int opt;
+
+	globalConfig.quiet = 0;
+	globalConfig.net_load = NULL;
+	globalConfig.net_save = NULL;
+	globalConfig.error_output = NULL;
+	globalConfig.test_input = NULL;
+	globalConfig.test_output = NULL;
+	
+	while ((opt = getopt(argc, argv, opts_analyse)) != -1)
+	{
+		switch (opt)
+		{
+		case 'q':
+			globalConfig.quiet = 1;
+			break;
+		case 'n':
+			globalConfig.net_save = globalConfig.net_load = optarg;
+			break;
+		case 'l':
+			globalConfig.net_load = optarg;
+			break;
+		case 's':
+			globalConfig.net_save = optarg;
+			break;
+		case 'e':
+			globalConfig.error_output = optarg;
+			break;
+		case 'i':
+			globalConfig.test_input = optarg;
+			break;
+		case 'o':
+			globalConfig.test_output = optarg;
+			break;
+		default:
+			break;
+		}
+	}
+	return 0;
+}
