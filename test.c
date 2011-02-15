@@ -33,6 +33,9 @@ int main(int argc, char* argv[])
 	int *test_input = malloc(N_INPUTS * sizeof(int));
 
 	FILE* fl = NULL;
+
+	/* set srand */
+	srand((unsigned int)time(NULL));
 	
 	/* get samples */
 	FILE* sample_input_file = fopen(f_samples, "r");
@@ -61,7 +64,7 @@ int main(int argc, char* argv[])
 	while (1)
 	{
 		char c;
-		int i;
+		int i, n_times;
 		scanf(" %c", &c);
 		for (i = 0; i < N_SAMPLES; i++)
 		{
@@ -74,13 +77,23 @@ int main(int argc, char* argv[])
 		/* else: caculate net */
 		swap_image(test_input, samples + i * N_INPUTS, SWAP_CHANCE);
 		setInputValue(&hnet, test_input);
-		caculate(&hnet);
+		/* do my own caculate to show the steps */
+		/* caculate(&hnet); */
 
-		/* show diff */
-		show_image(test_input, stdout);
-		fputc('\n', stdout);
-		show_image(hnet.result, stdout);
-		fputc('\n', stdout);
+		fprintf(stdout, "%d\n", 0); /* title: generation */
+		show_image(hnet.result, stdout); /* original image */
+
+		for (n_times = 1; n_times < MAX_CACUL_TIMES; n_times++)
+		{
+			if (cacul_once(&hnet))
+			{	/* is stable */
+				fprintf(stdout, "stable.\n");
+				break;
+			}
+			fprintf(stdout, "%d\n", n_times); /* title: generation */
+			show_image(hnet.result, stdout); /* image */
+		}
+		
 	}
 
 	/* print & save Net */
