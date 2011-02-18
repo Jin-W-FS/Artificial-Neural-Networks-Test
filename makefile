@@ -13,13 +13,16 @@ test.o:NeuralLayer.h
 
 NeuralLayer.o:NeuralLayer.h
 
-.PHONY:clean data
+.PHONY:clean show_error
 
-$(LOGS):$(TARGET)
+$(LOGS):$(TARGET) test_in.log
 	./$(TARGET) -e errors.log -i test_in.log -o test_out.log
 
-data:$(LOGS)
-	gnuplot -persist plot.cfg
+show_error:errors.log errors.plt
+	gnuplot -persist errors.plt
+
+show_test:
+	gnuplot -persist tests.plt
 
 clean:
 	-rm $(OBJS) $(TARGET)
